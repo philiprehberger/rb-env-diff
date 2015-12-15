@@ -2,6 +2,7 @@
 
 [![Tests](https://github.com/philiprehberger/rb-env-diff/actions/workflows/ci.yml/badge.svg)](https://github.com/philiprehberger/rb-env-diff/actions/workflows/ci.yml)
 [![Gem Version](https://badge.fury.io/rb/philiprehberger-env_diff.svg)](https://rubygems.org/gems/philiprehberger-env_diff)
+[![License](https://img.shields.io/github/license/philiprehberger/rb-env-diff)](LICENSE)
 
 Compare environment variables across environments and report differences.
 
