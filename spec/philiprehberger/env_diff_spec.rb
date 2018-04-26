@@ -162,4 +162,107 @@ RSpec.describe Philiprehberger::EnvDiff do
       file_b&.unlink
     end
   end
+
+  describe ".compare edge cases" do
+    it "returns no differences for identical environments" do
+      env = { "A" => "1", "B" => "2" }
+      diff = described_class.compare(env, env.dup)
+      expect(diff.changed?).to be false
+      expect(diff.added).to be_empty
+      expect(diff.removed).to be_empty
+      expect(diff.changed).to be_empty
+      expect(diff.unchanged).to eq(%w[A B])
+    end
+
+    it "handles both environments empty" do
+      diff = described_class.compare({}, {})
+      expect(diff.changed?).to be false
+      expect(diff.unchanged).to be_empty
+    end
+
+    it "handles source empty and target full" do
+      diff = described_class.compare({}, { "A" => "1", "B" => "2" })
+      expect(diff.added).to eq(%w[A B])
+      expect(diff.removed).to be_empty
+      expect(diff.changed).to be_empty
+    end
+
+    it "handles source full and target empty" do
+      diff = described_class.compare({ "A" => "1", "B" => "2" }, {})
+      expect(diff.added).to be_empty
+      expect(diff.removed).to eq(%w[A B])
+      expect(diff.changed).to be_empty
+    end
+
+    it "treats keys as case-sensitive" do
+      diff = described_class.compare({ "foo" => "1" }, { "FOO" => "1" })
+      expect(diff.removed).to eq(["foo"])
+      expect(diff.added).to eq(["FOO"])
+    end
+
+    it "detects value-only whitespace differences" do
+      diff = described_class.compare({ "A" => "hello" }, { "A" => "hello " })
+      expect(diff.changed).to eq({ "A" => { source: "hello", target: "hello " } })
+    end
+
+    it "handles empty string values" do
+      diff = described_class.compare({ "A" => "" }, { "A" => "" })
+      expect(diff.changed?).to be false
+      expect(diff.unchanged).to eq(["A"])
+    end
+
+    it "detects empty vs non-empty value" do
+      diff = described_class.compare({ "A" => "" }, { "A" => "val" })
+      expect(diff.changed).to eq({ "A" => { source: "", target: "val" } })
+    end
+  end
+
+  describe Philiprehberger::EnvDiff::Diff do
+    describe "#summary edge cases" do
+      it "formats multiple added keys" do
+        diff = described_class.new({}, { "X" => "1", "Y" => "2", "Z" => "3" })
+        summary = diff.summary
+        expect(summary).to include("+ X")
+        expect(summary).to include("+ Y")
+        expect(summary).to include("+ Z")
+      end
+
+      it "formats multiple removed keys" do
+        diff = described_class.new({ "X" => "1", "Y" => "2" }, {})
+        summary = diff.summary
+        expect(summary).to include("- X")
+        expect(summary).to include("- Y")
+      end
+
+      it "includes old and new values in changed line" do
+        diff = described_class.new({ "PORT" => "3000" }, { "PORT" => "8080" })
+        expect(diff.summary).to include("3000")
+        expect(diff.summary).to include("8080")
+      end
+    end
+  end
+
+  describe Philiprehberger::EnvDiff::Parser do
+    describe ".parse edge cases" do
+      it "handles values with equals signs" do
+        result = described_class.parse("URL=http://example.com?a=1&b=2")
+        expect(result).to eq({ "URL" => "http://example.com?a=1&b=2" })
+      end
+
+      it "handles export with quoted value" do
+        result = described_class.parse('export FOO="bar baz"')
+        expect(result).to eq({ "FOO" => "bar baz" })
+      end
+
+      it "parses content with only comments and blank lines" do
+        result = described_class.parse("# comment\n\n# another\n")
+        expect(result).to eq({})
+      end
+
+      it "handles keys with underscores and numbers" do
+        result = described_class.parse("MY_VAR_2=value")
+        expect(result).to eq({ "MY_VAR_2" => "value" })
+      end
+    end
+  end
 end
