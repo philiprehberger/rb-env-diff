@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require "philiprehberger/env_diff"
+require 'philiprehberger/env_diff'
 
 RSpec.configure do |config|
   config.expect_with :rspec do |expectations|

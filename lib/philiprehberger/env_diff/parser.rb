@@ -31,10 +31,10 @@ module Philiprehberger
       # @param line [String] a stripped line
       # @return [Array(String, String), nil] key-value pair or nil
       def self.parse_line(line)
-        return nil if line.empty? || line.start_with?("#")
+        return nil if line.empty? || line.start_with?('#')
 
-        line = line.sub(/\Aexport\s+/, "")
-        key, _, value = line.partition("=")
+        line = line.sub(/\Aexport\s+/, '')
+        key, _, value = line.partition('=')
         return nil if key.empty? || value.nil?
 
         [key.strip, unquote(value.strip)]

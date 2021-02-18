@@ -42,7 +42,7 @@ module Philiprehberger
         append_added(lines)
         append_removed(lines)
         append_changed(lines)
-        lines.empty? ? "No differences found." : lines.join("\n")
+        lines.empty? ? 'No differences found.' : lines.join("\n")
       end
 
       private
