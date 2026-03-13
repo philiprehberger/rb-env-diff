@@ -9,7 +9,8 @@ Gem::Specification.new do |spec|
   spec.email         = ["me@philiprehberger.com"]
 
   spec.summary       = "Compare environment variables across environments and report differences"
-  spec.description   = "Parse .env files or environment hashes, compare them side by side, and get a clear report of added, removed, changed, and unchanged variables."
+  spec.description   = "Parse .env files or environment hashes, compare them, " \
+                       "and get a clear report of added, removed, changed, and unchanged variables."
   spec.homepage      = "https://github.com/philiprehberger/rb-env-diff"
   spec.license       = "MIT"
 
@@ -17,7 +18,8 @@ Gem::Specification.new do |spec|
 
   spec.metadata["homepage_uri"]    = spec.homepage
   spec.metadata["source_code_uri"] = spec.homepage
-  spec.metadata["changelog_uri"]   = "#{spec.homepage}/blob/main/CHANGELOG.md"
+  spec.metadata["changelog_uri"]        = "#{spec.homepage}/blob/main/CHANGELOG.md"
+  spec.metadata["rubygems_mfa_required"] = "true"
 
   spec.files = Dir["lib/**/*.rb", "LICENSE", "README.md", "CHANGELOG.md"]
   spec.require_paths = ["lib"]
