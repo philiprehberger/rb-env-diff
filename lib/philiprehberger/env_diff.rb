@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
-require_relative "env_diff/version"
-require_relative "env_diff/diff"
-require_relative "env_diff/parser"
+require_relative 'env_diff/version'
+require_relative 'env_diff/diff'
+require_relative 'env_diff/parser'
 
 module Philiprehberger
   module EnvDiff
