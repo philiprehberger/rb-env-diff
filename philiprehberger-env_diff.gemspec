@@ -10,7 +10,7 @@ Gem::Specification.new do |spec|
 
   spec.summary = 'Compare environment variables across environments and report differences'
   spec.description = 'Parse .env files or environment hashes, compare them, ' \
-                       'and get a clear report of added, removed, changed, and unchanged variables.'
+                     'and get a clear report of added, removed, changed, and unchanged variables.'
   spec.homepage = 'https://philiprehberger.com/open-source-packages/ruby/philiprehberger-env_diff'
   spec.license = 'MIT'
 
