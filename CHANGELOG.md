@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-04-03
+
+### Added
+- `Diff#summary(mask:)` — mask values for sensitive keys using string or regex patterns
+- `Diff#to_h` — structured hash output with added, removed, changed, and unchanged categories
+- `Diff#to_json` — JSON serialization of the structured hash
+- `Diff#filter(pattern:)` — return a new Diff containing only keys matching a regex pattern
+- `Diff#stats` — returns counts of added, removed, changed, unchanged, and total keys
+- `EnvDiff.from_system(target)` — compare current ENV against a target hash or .env file path
+
 ## [0.1.8] - 2026-03-31
 
 ### Added

@@ -34,5 +34,14 @@ module Philiprehberger
     def self.from_env_file(path_a, path_b)
       compare(Parser.parse_file(path: path_a), Parser.parse_file(path: path_b))
     end
+
+    # Compare the current system ENV against a target hash or .env file path.
+    #
+    # @param target [Hash, String] a hash of target variables or a path to a .env file
+    # @return [Diff] the computed differences between ENV and target
+    def self.from_system(target)
+      target_hash = target.is_a?(String) ? Parser.parse_file(path: target) : target
+      compare(ENV.to_h, target_hash)
+    end
   end
 end

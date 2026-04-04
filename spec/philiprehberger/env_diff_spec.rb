@@ -2,6 +2,7 @@
 
 require 'spec_helper'
 require 'tempfile'
+require 'json'
 
 RSpec.describe Philiprehberger::EnvDiff do
   it 'has a version number' do
@@ -79,6 +80,122 @@ RSpec.describe Philiprehberger::EnvDiff do
       it 'returns no-diff message for empty hashes' do
         diff = described_class.new({}, {})
         expect(diff.summary).to eq('No differences found.')
+      end
+    end
+
+    describe '#summary with mask' do
+      let(:source) { { 'SECRET_KEY' => 'abc123', 'DB_PASSWORD' => 'pass', 'APP_NAME' => 'myapp', 'PORT' => '3000' } }
+      let(:target) { { 'SECRET_KEY' => 'xyz789', 'API_TOKEN' => 'tok', 'APP_NAME' => 'myapp' } }
+      let(:diff) { described_class.new(source, target) }
+
+      it 'masks values for exact string match' do
+        summary = diff.summary(mask: ['SECRET_KEY'])
+        expect(summary).to include('~ SECRET_KEY: *** -> ***')
+        expect(summary).not_to include('abc123')
+        expect(summary).not_to include('xyz789')
+      end
+
+      it 'masks values for regex match' do
+        summary = diff.summary(mask: [/SECRET|TOKEN|PASSWORD/])
+        expect(summary).to include('~ SECRET_KEY: *** -> ***')
+        expect(summary).to include('+ API_TOKEN=***')
+        expect(summary).to include('- DB_PASSWORD=***')
+      end
+
+      it 'does not mask non-matching keys' do
+        summary = diff.summary(mask: [/SECRET/])
+        expect(summary).to include('- PORT')
+        expect(summary).not_to include('PORT=***')
+      end
+
+      it 'handles empty mask array' do
+        summary_masked = diff.summary(mask: [])
+        summary_default = diff.summary
+        expect(summary_masked).to eq(summary_default)
+      end
+    end
+
+    describe '#to_h' do
+      it 'returns structured hash with all categories' do
+        source = { 'KEEP' => 'same', 'CHANGE' => 'old', 'REMOVE' => 'bye' }
+        target = { 'KEEP' => 'same', 'CHANGE' => 'new', 'ADD' => 'hello' }
+        diff = described_class.new(source, target)
+        result = diff.to_h
+
+        expect(result[:added]).to eq({ 'ADD' => 'hello' })
+        expect(result[:removed]).to eq({ 'REMOVE' => 'bye' })
+        expect(result[:changed]).to eq({ 'CHANGE' => { source: 'old', target: 'new' } })
+        expect(result[:unchanged]).to eq({ 'KEEP' => 'same' })
+      end
+
+      it 'returns empty hashes when no differences' do
+        diff = described_class.new({ 'A' => '1' }, { 'A' => '1' })
+        result = diff.to_h
+
+        expect(result[:added]).to eq({})
+        expect(result[:removed]).to eq({})
+        expect(result[:changed]).to eq({})
+        expect(result[:unchanged]).to eq({ 'A' => '1' })
+      end
+    end
+
+    describe '#to_json' do
+      it 'returns valid JSON matching to_h' do
+        source = { 'A' => '1', 'B' => '2' }
+        target = { 'A' => '3', 'C' => '4' }
+        diff = described_class.new(source, target)
+        parsed = JSON.parse(diff.to_json)
+
+        expect(parsed['added']).to eq({ 'C' => '4' })
+        expect(parsed['removed']).to eq({ 'B' => '2' })
+        expect(parsed['changed']).to eq({ 'A' => { 'source' => '1', 'target' => '3' } })
+        expect(parsed['unchanged']).to eq({})
+      end
+    end
+
+    describe '#filter' do
+      let(:source) { { 'DB_HOST' => 'localhost', 'DB_PORT' => '5432', 'APP_NAME' => 'myapp', 'REMOVED' => 'x' } }
+      let(:target) { { 'DB_HOST' => 'prod', 'DB_PORT' => '5432', 'APP_NAME' => 'myapp', 'DB_PASS' => 'secret' } }
+      let(:diff) { described_class.new(source, target) }
+
+      it 'returns a new Diff with only matching keys' do
+        filtered = diff.filter(pattern: /^DB_/)
+        expect(filtered.added).to eq(['DB_PASS'])
+        expect(filtered.removed).to eq([])
+        expect(filtered.changed.keys).to eq(['DB_HOST'])
+        expect(filtered.unchanged).to eq(['DB_PORT'])
+      end
+
+      it 'excludes non-matching keys' do
+        filtered = diff.filter(pattern: /^DB_/)
+        expect(filtered.added).not_to include('APP_NAME')
+        expect(filtered.removed).not_to include('REMOVED')
+      end
+
+      it 'returns empty diff when no keys match' do
+        filtered = diff.filter(pattern: /^ZZZZZ/)
+        expect(filtered.changed?).to be false
+        expect(filtered.stats[:total]).to eq(0)
+      end
+    end
+
+    describe '#stats' do
+      it 'returns counts for each category' do
+        source = { 'KEEP' => 'same', 'CHANGE' => 'old', 'REMOVE' => 'bye' }
+        target = { 'KEEP' => 'same', 'CHANGE' => 'new', 'ADD' => 'hello' }
+        diff = described_class.new(source, target)
+        result = diff.stats
+
+        expect(result[:added]).to eq(1)
+        expect(result[:removed]).to eq(1)
+        expect(result[:changed]).to eq(1)
+        expect(result[:unchanged]).to eq(1)
+        expect(result[:total]).to eq(4)
+      end
+
+      it 'returns all zeros for empty hashes' do
+        diff = described_class.new({}, {})
+        expect(diff.stats).to eq({ added: 0, removed: 0, changed: 0, unchanged: 0, total: 0 })
       end
     end
   end
@@ -160,6 +277,35 @@ RSpec.describe Philiprehberger::EnvDiff do
     ensure
       file_a&.unlink
       file_b&.unlink
+    end
+  end
+
+  describe '.from_system' do
+    it 'compares ENV against a target hash' do
+      target = { 'PATH' => '/custom/path', 'NONEXISTENT_VAR_XYZ' => 'value' }
+      diff = described_class.from_system(target)
+
+      expect(diff).to be_a(Philiprehberger::EnvDiff::Diff)
+      expect(diff.added).to include('NONEXISTENT_VAR_XYZ')
+    end
+
+    it 'compares ENV against a .env file path' do
+      file = Tempfile.new('.env.target')
+      file.write("NONEXISTENT_VAR_ABC=hello\n")
+      file.close
+
+      diff = described_class.from_system(file.path)
+      expect(diff.added).to include('NONEXISTENT_VAR_ABC')
+    ensure
+      file&.unlink
+    end
+
+    it 'detects changed values compared to ENV' do
+      env_key = ENV.keys.first
+      target = { env_key => 'definitely_not_the_real_value_12345' }
+      diff = described_class.from_system(target)
+
+      expect(diff.changed.keys).to include(env_key)
     end
   end
 
