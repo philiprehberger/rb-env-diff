@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-04-14
+
+### Added
+- `EnvDiff.validate(target, required:)` — check that all required keys exist in a target hash or .env file
+- `case_sensitive:` keyword on `compare`, `from_hash`, `from_env_file`, and `from_system` — normalize keys to uppercase when false
+- `EnvDiff.to_markdown(diff)` — format a diff result as a Markdown table string
+- `EnvDiff.to_html(diff)` — format a diff result as an HTML table string
+
 ## [0.2.0] - 2026-04-03
 
 ### Added
