@@ -309,6 +309,140 @@ RSpec.describe Philiprehberger::EnvDiff do
     end
   end
 
+  describe '.validate' do
+    it 'returns valid when all required keys are present' do
+      target = { 'DATABASE_URL' => 'postgres://localhost', 'SECRET' => 'abc', 'PORT' => '3000' }
+      result = described_class.validate(target, required: %w[DATABASE_URL SECRET PORT])
+      expect(result[:valid]).to be true
+      expect(result[:missing]).to be_empty
+    end
+
+    it 'returns invalid with missing keys' do
+      target = { 'DATABASE_URL' => 'postgres://localhost' }
+      result = described_class.validate(target, required: %w[DATABASE_URL SECRET PORT])
+      expect(result[:valid]).to be false
+      expect(result[:missing]).to eq(%w[SECRET PORT])
+    end
+
+    it 'returns valid for empty required list' do
+      result = described_class.validate({ 'A' => '1' }, required: [])
+      expect(result[:valid]).to be true
+      expect(result[:missing]).to be_empty
+    end
+
+    it 'returns invalid when target is empty' do
+      result = described_class.validate({}, required: %w[A B])
+      expect(result[:valid]).to be false
+      expect(result[:missing]).to eq(%w[A B])
+    end
+
+    it 'returns valid for empty target and empty required' do
+      result = described_class.validate({}, required: [])
+      expect(result[:valid]).to be true
+      expect(result[:missing]).to be_empty
+    end
+
+    it 'validates against a .env file path' do
+      file = Tempfile.new('.env')
+      file.write("DATABASE_URL=postgres://localhost\nPORT=3000\n")
+      file.close
+
+      result = described_class.validate(file.path, required: %w[DATABASE_URL PORT SECRET])
+      expect(result[:valid]).to be false
+      expect(result[:missing]).to eq(['SECRET'])
+    ensure
+      file&.unlink
+    end
+  end
+
+  describe '.compare with case_sensitive option' do
+    it 'treats keys as case-sensitive by default' do
+      diff = described_class.compare({ 'foo' => '1' }, { 'FOO' => '1' })
+      expect(diff.removed).to eq(['foo'])
+      expect(diff.added).to eq(['FOO'])
+    end
+
+    it 'normalizes keys to uppercase when case_sensitive is false' do
+      diff = described_class.compare({ 'foo' => '1' }, { 'FOO' => '1' }, case_sensitive: false)
+      expect(diff.changed?).to be false
+      expect(diff.unchanged).to eq(['FOO'])
+    end
+
+    it 'detects value changes with case-insensitive keys' do
+      diff = described_class.compare({ 'db_host' => 'localhost' }, { 'DB_HOST' => 'prod' }, case_sensitive: false)
+      expect(diff.changed.keys).to eq(['DB_HOST'])
+      expect(diff.changed['DB_HOST'][:source]).to eq('localhost')
+      expect(diff.changed['DB_HOST'][:target]).to eq('prod')
+    end
+
+    it 'detects added keys with case-insensitive comparison' do
+      diff = described_class.compare({ 'a' => '1' }, { 'A' => '1', 'B' => '2' }, case_sensitive: false)
+      expect(diff.added).to eq(['B'])
+      expect(diff.unchanged).to eq(['A'])
+    end
+
+    it 'passes case_sensitive through from_hash' do
+      diff = described_class.from_hash({ 'foo' => '1' }, { 'FOO' => '1' }, case_sensitive: false)
+      expect(diff.changed?).to be false
+    end
+  end
+
+  describe '.to_markdown' do
+    it 'formats a diff as a Markdown table' do
+      diff = described_class.compare(
+        { 'KEEP' => 'same', 'CHANGE' => 'old', 'REMOVE' => 'bye' },
+        { 'KEEP' => 'same', 'CHANGE' => 'new', 'ADD' => 'hello' }
+      )
+      md = described_class.to_markdown(diff)
+
+      expect(md).to include('| Key | Status | Source | Target |')
+      expect(md).to include('| --- | ------ | ------ | ------ |')
+      expect(md).to include('| ADD | added | | hello |')
+      expect(md).to include('| REMOVE | removed | bye | |')
+      expect(md).to include('| CHANGE | changed | old | new |')
+      expect(md).to include('| KEEP | unchanged | same | same |')
+    end
+
+    it 'returns only headers for identical hashes' do
+      diff = described_class.compare({ 'A' => '1' }, { 'A' => '1' })
+      md = described_class.to_markdown(diff)
+
+      expect(md).to include('| A | unchanged | 1 | 1 |')
+      expect(md).not_to include('| added |')
+      expect(md).not_to include('| removed |')
+      expect(md).not_to include('| changed |')
+    end
+  end
+
+  describe '.to_html' do
+    it 'formats a diff as an HTML table' do
+      diff = described_class.compare(
+        { 'KEEP' => 'same', 'CHANGE' => 'old', 'REMOVE' => 'bye' },
+        { 'KEEP' => 'same', 'CHANGE' => 'new', 'ADD' => 'hello' }
+      )
+      html = described_class.to_html(diff)
+
+      expect(html).to include('<table>')
+      expect(html).to include('</table>')
+      expect(html).to include('<th>Key</th><th>Status</th><th>Source</th><th>Target</th>')
+      expect(html).to include('<td>ADD</td><td>added</td><td></td><td>hello</td>')
+      expect(html).to include('<td>REMOVE</td><td>removed</td><td>bye</td><td></td>')
+      expect(html).to include('<td>CHANGE</td><td>changed</td><td>old</td><td>new</td>')
+      expect(html).to include('<td>KEEP</td><td>unchanged</td><td>same</td><td>same</td>')
+    end
+
+    it 'returns a valid table for empty diff' do
+      diff = described_class.compare({}, {})
+      html = described_class.to_html(diff)
+
+      expect(html).to include('<table>')
+      expect(html).to include('</table>')
+      expect(html).to include('<th>Key</th>')
+      lines = html.split("\n")
+      expect(lines.count { |l| l.include?('<tr>') }).to eq(1) # only header row
+    end
+  end
+
   describe '.compare edge cases' do
     it 'returns no differences for identical environments' do
       env = { 'A' => '1', 'B' => '2' }

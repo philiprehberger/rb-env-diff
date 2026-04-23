@@ -82,6 +82,57 @@ diff.stats
 # => { added: 1, removed: 1, changed: 1, unchanged: 1, total: 4 }
 ```
 
+### Validation
+
+Check that all required keys exist in a target hash or `.env` file:
+
+```ruby
+target = { 'DATABASE_URL' => 'postgres://localhost', 'PORT' => '3000' }
+result = Philiprehberger::EnvDiff.validate(target, required: %w[DATABASE_URL SECRET PORT])
+result[:valid]   # => false
+result[:missing] # => ["SECRET"]
+
+# Also works with .env file paths
+result = Philiprehberger::EnvDiff.validate(".env.production", required: %w[DATABASE_URL SECRET])
+```
+
+### Case-Insensitive Comparison
+
+Normalize keys to uppercase before comparing by passing `case_sensitive: false`:
+
+```ruby
+diff = Philiprehberger::EnvDiff.compare(
+  { "db_host" => "localhost" },
+  { "DB_HOST" => "localhost" },
+  case_sensitive: false
+)
+diff.changed? # => false
+diff.unchanged # => ["DB_HOST"]
+```
+
+### Export Formats
+
+Format a diff result as a Markdown or HTML table:
+
+```ruby
+diff = Philiprehberger::EnvDiff.compare(source, target)
+
+puts Philiprehberger::EnvDiff.to_markdown(diff)
+# | Key | Status | Source | Target |
+# | --- | ------ | ------ | ------ |
+# | NEW_KEY | added | | added |
+# | OLD_KEY | removed | remove_me | |
+# | DATABASE_URL | changed | postgres://localhost/dev | postgres://prod-host/app |
+# | SECRET | unchanged | abc | abc |
+
+puts Philiprehberger::EnvDiff.to_html(diff)
+# <table>
+#   <tr><th>Key</th><th>Status</th><th>Source</th><th>Target</th></tr>
+#   <tr><td>NEW_KEY</td><td>added</td><td></td><td>added</td></tr>
+#   ...
+# </table>
+```
+
 ### Compare against system ENV
 
 ```ruby
@@ -112,10 +163,13 @@ ENV
 
 | Method / Class | Description |
 |----------------|-------------|
-| `EnvDiff.compare(source, target)` | Compare two hashes and return a `Diff` |
-| `EnvDiff.from_hash(hash_a, hash_b)` | Alias for `compare` |
-| `EnvDiff.from_env_file(path_a, path_b)` | Parse two `.env` files and compare them |
-| `EnvDiff.from_system(target)` | Compare current `ENV` against a target hash or `.env` file path |
+| `EnvDiff.compare(source, target, case_sensitive: true)` | Compare two hashes and return a `Diff` |
+| `EnvDiff.from_hash(hash_a, hash_b, case_sensitive: true)` | Alias for `compare` |
+| `EnvDiff.from_env_file(path_a, path_b, case_sensitive: true)` | Parse two `.env` files and compare them |
+| `EnvDiff.from_system(target, case_sensitive: true)` | Compare current `ENV` against a target hash or `.env` file path |
+| `EnvDiff.validate(target, required:)` | Check that all required keys exist in target; returns `{ valid:, missing: }` |
+| `EnvDiff.to_markdown(diff)` | Format a diff result as a Markdown table string |
+| `EnvDiff.to_html(diff)` | Format a diff result as an HTML table string |
 | `Diff#added` | Array of keys in target but not source |
 | `Diff#removed` | Array of keys in source but not target |
 | `Diff#changed` | Hash of keys with different values |
