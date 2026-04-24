@@ -82,6 +82,16 @@ diff.stats
 # => { added: 1, removed: 1, changed: 1, unchanged: 1, total: 4 }
 ```
 
+### Per-key status
+
+```ruby
+diff.status_for("NEW_KEY")      # => :added
+diff.status_for("OLD_KEY")      # => :removed
+diff.status_for("DATABASE_URL") # => :changed
+diff.status_for("SECRET")       # => :unchanged
+diff.status_for("NOT_THERE")    # => nil
+```
+
 ### Validation
 
 Check that all required keys exist in a target hash or `.env` file:
@@ -180,6 +190,7 @@ ENV
 | `Diff#to_json` | JSON serialization of the structured hash |
 | `Diff#filter(pattern:)` | New `Diff` containing only keys matching the regex pattern |
 | `Diff#stats` | Hash of counts: `:added`, `:removed`, `:changed`, `:unchanged`, `:total` |
+| `Diff#status_for(key)` | Status of a single key as `:added`, `:removed`, `:changed`, `:unchanged`, or `nil` |
 | `Parser.parse(content)` | Parse `.env` string into a hash |
 | `Parser.parse_file(path:)` | Read and parse a `.env` file |
 

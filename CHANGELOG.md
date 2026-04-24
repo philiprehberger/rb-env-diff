@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-04-24
+
+### Added
+- `Diff#status_for(key)` — returns the status of a single key as a Symbol (`:added`, `:removed`, `:changed`, `:unchanged`), or `nil` if the key is absent from both sides
+
 ## [0.3.0] - 2026-04-14
 
 ### Added

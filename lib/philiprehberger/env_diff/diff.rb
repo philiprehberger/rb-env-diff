@@ -92,6 +92,19 @@ module Philiprehberger
         }
       end
 
+      # Status of a single key in this diff.
+      #
+      # @param key [String] the key to look up
+      # @return [Symbol, nil] one of :added, :removed, :changed, :unchanged, or nil if absent from both sides
+      def status_for(key)
+        return :added if @added.include?(key)
+        return :removed if @removed.include?(key)
+        return :changed if @changed.key?(key)
+        return :unchanged if @unchanged.include?(key)
+
+        nil
+      end
+
       private
 
       def build_changed(source, target)

@@ -198,6 +198,35 @@ RSpec.describe Philiprehberger::EnvDiff do
         expect(diff.stats).to eq({ added: 0, removed: 0, changed: 0, unchanged: 0, total: 0 })
       end
     end
+
+    describe '#status_for' do
+      let(:diff) do
+        described_class.new(
+          { 'KEEP' => 'same', 'CHANGE' => 'old', 'REMOVE' => 'bye' },
+          { 'KEEP' => 'same', 'CHANGE' => 'new', 'ADD' => 'hello' }
+        )
+      end
+
+      it 'returns :added for keys only in target' do
+        expect(diff.status_for('ADD')).to eq(:added)
+      end
+
+      it 'returns :removed for keys only in source' do
+        expect(diff.status_for('REMOVE')).to eq(:removed)
+      end
+
+      it 'returns :changed for keys with different values' do
+        expect(diff.status_for('CHANGE')).to eq(:changed)
+      end
+
+      it 'returns :unchanged for keys with identical values' do
+        expect(diff.status_for('KEEP')).to eq(:unchanged)
+      end
+
+      it 'returns nil for keys absent from both sides' do
+        expect(diff.status_for('UNKNOWN')).to be_nil
+      end
+    end
   end
 
   describe Philiprehberger::EnvDiff::Parser do
