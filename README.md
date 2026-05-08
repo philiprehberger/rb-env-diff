@@ -122,7 +122,7 @@ diff.unchanged # => ["DB_HOST"]
 
 ### Export Formats
 
-Format a diff result as a Markdown or HTML table:
+Format a diff result as a Markdown, HTML, or CSV table:
 
 ```ruby
 diff = Philiprehberger::EnvDiff.compare(source, target)
@@ -141,6 +141,13 @@ puts Philiprehberger::EnvDiff.to_html(diff)
 #   <tr><td>NEW_KEY</td><td>added</td><td></td><td>added</td></tr>
 #   ...
 # </table>
+
+puts Philiprehberger::EnvDiff.to_csv(diff, mask: ['SECRET'])
+# key,status,source,target
+# NEW_KEY,added,,added
+# OLD_KEY,removed,remove_me,
+# DATABASE_URL,changed,postgres://localhost/dev,postgres://prod-host/app
+# SECRET,unchanged,***,***
 ```
 
 ### Compare against system ENV
@@ -180,6 +187,7 @@ ENV
 | `EnvDiff.validate(target, required:)` | Check that all required keys exist in target; returns `{ valid:, missing: }` |
 | `EnvDiff.to_markdown(diff)` | Format a diff result as a Markdown table string |
 | `EnvDiff.to_html(diff)` | Format a diff result as an HTML table string |
+| `EnvDiff.to_csv(diff, mask: [])` | Format a diff result as a `key,status,source,target` CSV; supports value masking |
 | `Diff#added` | Array of keys in target but not source |
 | `Diff#removed` | Array of keys in source but not target |
 | `Diff#changed` | Hash of keys with different values |

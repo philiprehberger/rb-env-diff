@@ -472,6 +472,51 @@ RSpec.describe Philiprehberger::EnvDiff do
     end
   end
 
+  describe '.to_csv' do
+    it 'formats a diff as a CSV string with header line' do
+      diff = described_class.compare(
+        { 'KEEP' => 'same', 'CHANGE' => 'old', 'REMOVE' => 'bye' },
+        { 'KEEP' => 'same', 'CHANGE' => 'new', 'ADD' => 'hello' }
+      )
+      csv = described_class.to_csv(diff)
+
+      expect(csv).to start_with("key,status,source,target\n")
+      expect(csv).to include("ADD,added,,hello\n")
+      expect(csv).to include("REMOVE,removed,bye,\n")
+      expect(csv).to include("CHANGE,changed,old,new\n")
+      expect(csv).to include("KEEP,unchanged,same,same\n")
+    end
+
+    it 'returns just the header line for an empty diff' do
+      expect(described_class.to_csv(described_class.compare({}, {}))).to eq("key,status,source,target\n")
+    end
+
+    it 'quotes values containing commas, quotes, or newlines' do
+      diff = described_class.compare({ 'A' => 'old' }, { 'A' => 'val,with,commas' })
+      csv = described_class.to_csv(diff)
+      expect(csv).to include('A,changed,old,"val,with,commas"')
+
+      diff2 = described_class.compare({}, { 'B' => 'has "quotes"' })
+      expect(described_class.to_csv(diff2)).to include('B,added,,"has ""quotes"""')
+    end
+
+    it 'redacts source and target values when key matches mask' do
+      diff = described_class.compare(
+        { 'API_KEY' => 'old_secret', 'NORMAL' => 'public' },
+        { 'API_KEY' => 'new_secret', 'NORMAL' => 'public' }
+      )
+      csv = described_class.to_csv(diff, mask: ['API_KEY'])
+      expect(csv).to include("API_KEY,changed,***,***\n")
+      expect(csv).to include("NORMAL,unchanged,public,public\n")
+    end
+
+    it 'mask matching is case-insensitive and substring-based' do
+      diff = described_class.compare({}, { 'MY_SECRET_TOKEN' => 'tok' })
+      csv = described_class.to_csv(diff, mask: ['secret'])
+      expect(csv).to include("MY_SECRET_TOKEN,added,,***\n")
+    end
+  end
+
   describe '.compare edge cases' do
     it 'returns no differences for identical environments' do
       env = { 'A' => '1', 'B' => '2' }

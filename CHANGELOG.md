@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-05-08
+
+### Added
+- `EnvDiff.to_csv(diff, mask: [])` — exports a structured `key,status,source,target` CSV (RFC 4180 quoting). Complements the existing `to_markdown` and `to_html` exports for spreadsheet review. Supports the same `mask:` substring redaction as `Diff#summary`.
+
 ## [0.4.0] - 2026-04-24
 
 ### Added

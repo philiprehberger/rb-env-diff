@@ -63,6 +63,49 @@ module Philiprehberger
       lines.join("\n")
     end
 
+    # Format a diff result as a CSV string with header `key,status,source,target`.
+    #
+    # Values containing commas, quotes, or newlines are quoted per RFC 4180.
+    # Keys whose name contains any of `mask` (substring match, case-insensitive)
+    # have their source and target values redacted to `***`.
+    #
+    # @param diff [Diff] the diff to format
+    # @param mask [Array<String>] substrings to match against keys for redaction
+    # @return [String] CSV body with a trailing newline
+    def self.to_csv(diff, mask: [])
+      data = diff.to_h
+      lines = ['key,status,source,target']
+
+      diff.added.each { |key| lines << csv_row(key, 'added', '', data[:added][key], mask) }
+      diff.removed.each { |key| lines << csv_row(key, 'removed', data[:removed][key], '', mask) }
+      diff.changed.each do |key, vals|
+        lines << csv_row(key, 'changed', vals[:source], vals[:target], mask)
+      end
+      diff.unchanged.each do |key|
+        val = data[:unchanged][key]
+        lines << csv_row(key, 'unchanged', val, val, mask)
+      end
+
+      "#{lines.join("\n")}\n"
+    end
+
+    def self.csv_row(key, status, source, target, mask)
+      masked = mask.any? { |m| key.to_s.downcase.include?(m.to_s.downcase) }
+      source = '***' if masked && source.to_s != ''
+      target = '***' if masked && target.to_s != ''
+      [key, status, source, target].map { |cell| csv_escape(cell) }.join(',')
+    end
+    private_class_method :csv_row
+
+    def self.csv_escape(value)
+      string = value.to_s
+      return string unless string.match?(/[",\n\r]/)
+
+      escaped = string.gsub('"', '""')
+      "\"#{escaped}\""
+    end
+    private_class_method :csv_escape
+
     # Format a diff result as an HTML table string.
     #
     # @param diff [Diff] the diff to format
